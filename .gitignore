@@ -37,6 +37,15 @@ staticfiles/
 logs/
 *.log
 
+# Celery runtime
+celerybeat-schedule
+celerybeat-schedule.*
+
+# Python tooling caches
+.mypy_cache/
+.ruff_cache/
+.tox/
+
 # Docker
 docker-compose.override.yml
 

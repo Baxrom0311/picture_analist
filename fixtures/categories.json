@@ -1,0 +1,87 @@
+[
+    {
+        "model": "artworks.category",
+        "pk": 1,
+        "fields": {
+            "name": "Composition",
+            "name_uz": "Kompozitsiya",
+            "description": "Balans, simmetriya, va focal point tahlili",
+            "weight": "20.00",
+            "criteria": {
+                "balance": "Vizual balans va simmetriya",
+                "focal_point": "Diqqat markazining aniqligi",
+                "lines_shapes": "Chiziqlar va shakllarning uyg'unligi",
+                "space": "Bo'shliqdan foydalanish"
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "artworks.category",
+        "pk": 2,
+        "fields": {
+            "name": "Color and Light",
+            "name_uz": "Rang va yorug'lik",
+            "description": "Rang palitrasining uyg'unligi va yorug'lik balansi",
+            "weight": "20.00",
+            "criteria": {
+                "palette": "Rang palitrasining harmoniyasi",
+                "contrast": "Kontrast va dinamiklik",
+                "lighting": "Yorug'lik-soya balansi",
+                "mood": "Ranglar orqali mood yaratish"
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "artworks.category",
+        "pk": 3,
+        "fields": {
+            "name": "Technique",
+            "name_uz": "Texnika",
+            "description": "Chiziqlash sifati va texnik mahorat",
+            "weight": "25.00",
+            "criteria": {
+                "line_quality": "Chiziqlarning sifati va aniqlik",
+                "detail": "Detalizatsiya darajasi",
+                "application": "Texnikaning to'g'ri qo'llanilishi",
+                "mastery": "Umumiy texnik mahorat"
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "artworks.category",
+        "pk": 4,
+        "fields": {
+            "name": "Creativity",
+            "name_uz": "Kreativlik",
+            "description": "Noyoblik va ijodiy yondashuv",
+            "weight": "20.00",
+            "criteria": {
+                "originality": "Noyoblik va originallik",
+                "innovation": "Innovatsion yondashuv",
+                "uniqueness": "O'ziga xoslik",
+                "concept": "Konsepsiya va g'oya"
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "artworks.category",
+        "pk": 5,
+        "fields": {
+            "name": "Overall Impact",
+            "name_uz": "Umumiy ta'sir",
+            "description": "Emotional ta'sir va professional ko'rinish",
+            "weight": "15.00",
+            "criteria": {
+                "emotion": "Emotsional ta'sir",
+                "professionalism": "Professional ko'rinish",
+                "completion": "Tugallangan his",
+                "message": "Yetkazilayotgan xabar"
+            },
+            "is_active": true
+        }
+    }
+]

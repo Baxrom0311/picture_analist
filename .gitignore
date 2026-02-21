@@ -1,0 +1,61 @@
+# Django
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Environment
+.env
+.env.local
+
+# Media uploads
+media/
+
+# Static files (collected)
+staticfiles/
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# macOS
+.DS_Store
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# pytest
+.pytest_cache/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

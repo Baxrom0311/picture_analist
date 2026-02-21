@@ -1,0 +1,1420 @@
+openapi: 3.0.3
+info:
+  title: AI Art Evaluation API
+  version: 1.0.0
+  description: AI-powered art evaluation system using Claude LLM
+paths:
+  /api/v1/artworks/:
+    get:
+      operationId: api_v1_artworks_list
+      description: List artworks uploaded by the current user. Admins see all artworks.
+      summary: List Artworks
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Artworks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedArtworkListList'
+          description: ''
+    post:
+      operationId: api_v1_artworks_create
+      description: Upload a new artwork for evaluation. Deducts 1 credit.
+      summary: Upload Artwork
+      tags:
+      - Artworks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtworkCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ArtworkCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArtworkCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtworkCreate'
+          description: ''
+        '400':
+          description: Bad Request
+        '402':
+          description: Payment Required (Insufficient credits)
+  /api/v1/artworks/{id}/:
+    get:
+      operationId: api_v1_artworks_retrieve
+      description: Get detailed information about a specific artwork, including evaluation
+        status.
+      summary: Get Artwork Details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Artworks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtworkDetail'
+          description: ''
+    put:
+      operationId: api_v1_artworks_update
+      description: Update artwork details (title, description).
+      summary: Update Artwork
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Artworks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtworkDetail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ArtworkDetail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArtworkDetail'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtworkDetail'
+          description: ''
+    patch:
+      operationId: api_v1_artworks_partial_update
+      description: Partially update artwork details.
+      summary: Partially Update Artwork
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Artworks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedArtworkDetail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedArtworkDetail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedArtworkDetail'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtworkDetail'
+          description: ''
+    delete:
+      operationId: api_v1_artworks_destroy
+      description: Delete an artwork and its associated data.
+      summary: Delete Artwork
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Artworks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/artworks/{id}/re-evaluate/:
+    post:
+      operationId: api_v1_artworks_re_evaluate_create
+      description: Trigger re-evaluation for an existing artwork. Deducts 1 credit.
+      summary: Re-evaluate Artwork
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Artworks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Re-evaluation started
+        '400':
+          description: Bad Request
+        '402':
+          description: Payment Required (Insufficient credits)
+  /api/v1/auth/change-password/:
+    put:
+      operationId: api_v1_auth_change_password_update
+      description: Change the current user password.
+      summary: Change Password
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePassword'
+          description: ''
+    patch:
+      operationId: api_v1_auth_change_password_partial_update
+      description: Change the current user password.
+      summary: Change Password
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePassword'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: api_v1_auth_login_create
+      description: Authenticate with username and password to obtain JWT access and
+        refresh tokens.
+      summary: Login
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  refresh:
+                    type: string
+                  access:
+                    type: string
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: api_v1_auth_logout_create
+      description: Blacklist the refresh token to end the session.
+      summary: Logout
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh:
+                  type: string
+                  description: Refresh token to blacklist
+              required:
+              - refresh
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Successfully logged out
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Invalid token
+          description: ''
+  /api/v1/auth/profile/:
+    get:
+      operationId: api_v1_auth_profile_retrieve
+      description: Retrieve or update current user profile information.
+      summary: Get/Update Profile
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    put:
+      operationId: api_v1_auth_profile_update
+      description: Retrieve or update current user profile information.
+      summary: Get/Update Profile
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    patch:
+      operationId: api_v1_auth_profile_partial_update
+      description: Retrieve or update current user profile information.
+      summary: Get/Update Profile
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfile'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+  /api/v1/auth/profile/stats/:
+    get:
+      operationId: api_v1_auth_profile_stats_retrieve
+      description: Get statistics about user artworks, evaluations, and credits.
+      summary: Get User Statistics
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: api_v1_auth_refresh_create
+      description: Get a new access token using a valid refresh token.
+      summary: Refresh Token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: api_v1_auth_register_create
+      description: Create a new user account with default role (Artist) and credits.
+      summary: Register a new user
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistration'
+          description: ''
+        '400':
+          description: Bad Request
+  /api/v1/categories/:
+    get:
+      operationId: api_v1_categories_list
+      description: List all active evaluation categories with their weights and criteria.
+      summary: List Categories
+      tags:
+      - Categories
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/evaluations/:
+    get:
+      operationId: api_v1_evaluations_list
+      description: List evaluations for your artworks. Admins see all.
+      summary: List Evaluations
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEvaluationListList'
+          description: ''
+  /api/v1/evaluations/{id}/:
+    get:
+      operationId: api_v1_evaluations_retrieve
+      description: Get detailed evaluation results including category scores and feedback.
+      summary: Get Evaluation Details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDetail'
+          description: ''
+  /api/v1/schema/:
+    get:
+      operationId: api_v1_schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /health/:
+    get:
+      operationId: health_retrieve
+      description: |-
+        Basic liveness probe.
+        Returns 200 if the application is running.
+        Used by: Docker HEALTHCHECK, Kubernetes livenessProbe, load balancers.
+      tags:
+      - health
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /health/ready/:
+    get:
+      operationId: health_ready_retrieve
+      description: |-
+        Readiness probe — checks all dependencies.
+        Returns 200 if all services are accessible, 503 otherwise.
+        Used by: Kubernetes readinessProbe, deployment verification.
+
+        Checks:
+        - Database connection
+        - Redis/Celery broker
+        - Storage (S3 if enabled)
+      tags:
+      - health
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - started
+      - processing
+      - completed
+      - failed
+      - retried
+      type: string
+      description: |-
+        * `started` - Boshlandi
+        * `processing` - Qayta ishlanmoqda
+        * `completed` - Yakunlandi
+        * `failed` - Xatolik
+        * `retried` - Qayta urinildi
+    ArtworkCreate:
+      type: object
+      description: Serializer for creating a new Artwork (upload).
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          default: ''
+        image:
+          type: string
+          format: uri
+          title: Rasm
+      required:
+      - image
+      - title
+    ArtworkDetail:
+      type: object
+      description: Serializer for Artwork detail view (full info).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          title: Sarlavha
+          maxLength: 255
+        description:
+          type: string
+          title: Tavsif
+        image:
+          type: string
+          format: uri
+          title: Rasm
+        image_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: S3 URL
+        file_size:
+          type: integer
+          readOnly: true
+          title: Fayl hajmi (bytes)
+        width:
+          type: integer
+          readOnly: true
+          title: Kenglik (px)
+        height:
+          type: integer
+          readOnly: true
+          title: Balandlik (px)
+        format:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          title: Holat
+        status_display:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yaratilgan
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yangilangan
+      required:
+      - created_at
+      - file_size
+      - format
+      - height
+      - id
+      - image
+      - image_url
+      - status
+      - status_display
+      - title
+      - updated_at
+      - user
+      - width
+    ArtworkList:
+      type: object
+      description: Serializer for Artwork list view (lightweight).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Sarlavha
+          maxLength: 255
+        user:
+          type: string
+          readOnly: true
+        image:
+          type: string
+          format: uri
+          title: Rasm
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Holat
+        status_display:
+          type: string
+          readOnly: true
+        format:
+          type: string
+          maxLength: 10
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yaratilgan
+        evaluation_score:
+          type: string
+          readOnly: true
+      required:
+      - created_at
+      - evaluation_score
+      - id
+      - image
+      - status_display
+      - title
+      - user
+    Category:
+      type: object
+      description: Serializer for Category model.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nomi (EN)
+          maxLength: 100
+        name_uz:
+          type: string
+          title: Nomi (UZ)
+          maxLength: 100
+        description:
+          type: string
+          title: Tavsif
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: Vazn (%)
+          description: Foizdagi vazn (jami 100% bo'lishi kerak)
+        criteria:
+          title: Mezonlar
+          description: Baholash mezonlari (JSON formatda)
+        is_active:
+          type: boolean
+          title: Faol
+      required:
+      - id
+      - name
+      - name_uz
+      - weight
+    CategoryScore:
+      type: object
+      description: Serializer for CategoryScore - shows per-category evaluation details.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/Category'
+          readOnly: true
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: Ball (0-100)
+        feedback:
+          type: string
+          title: Tahlil
+        strengths:
+          title: Kuchli tomonlar
+        improvements:
+          title: Yaxshilanish tavsiyalari
+      required:
+      - category
+      - id
+    ChangePassword:
+      type: object
+      description: Serializer for password change.
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+      required:
+      - new_password
+      - old_password
+    EvaluationDetail:
+      type: object
+      description: Full serializer for evaluation detail with category scores and
+        history.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        artwork_title:
+          type: string
+          readOnly: true
+        artwork_image:
+          type: string
+          format: uri
+          readOnly: true
+        llm_provider:
+          type: string
+          maxLength: 50
+        llm_model:
+          type: string
+          maxLength: 100
+        prompt_version:
+          type: string
+          title: Prompt versiyasi
+          maxLength: 20
+        total_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: Umumiy ball
+        summary:
+          type: string
+          title: Xulosa
+        grade:
+          type: string
+          title: Baho
+          maxLength: 2
+        raw_response:
+          title: LLM to'liq javobi
+        processing_time:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,3})?$
+          title: Qayta ishlash vaqti (soniya)
+        api_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,4})?$
+          nullable: true
+          title: API narxi (USD)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yaratilgan
+        category_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryScore'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationHistory'
+          readOnly: true
+      required:
+      - artwork_image
+      - artwork_title
+      - category_scores
+      - created_at
+      - history
+      - id
+      - llm_model
+    EvaluationHistory:
+      type: object
+      description: Serializer for evaluation lifecycle history.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          title: Harakat
+        action_display:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          title: Xabar
+        metadata:
+          title: Qo'shimcha ma'lumotlar
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Vaqt
+      required:
+      - action
+      - action_display
+      - created_at
+      - id
+    EvaluationList:
+      type: object
+      description: Lightweight serializer for evaluation list.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        artwork_id:
+          type: integer
+          readOnly: true
+        artwork_title:
+          type: string
+          readOnly: true
+        total_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: Umumiy ball
+        grade:
+          type: string
+          title: Baho
+          maxLength: 2
+        processing_time:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,3})?$
+          title: Qayta ishlash vaqti (soniya)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yaratilgan
+      required:
+      - artwork_id
+      - artwork_title
+      - created_at
+      - id
+    PaginatedArtworkListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtworkList'
+    PaginatedEvaluationListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationList'
+    PatchedArtworkDetail:
+      type: object
+      description: Serializer for Artwork detail view (full info).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          title: Sarlavha
+          maxLength: 255
+        description:
+          type: string
+          title: Tavsif
+        image:
+          type: string
+          format: uri
+          title: Rasm
+        image_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: S3 URL
+        file_size:
+          type: integer
+          readOnly: true
+          title: Fayl hajmi (bytes)
+        width:
+          type: integer
+          readOnly: true
+          title: Kenglik (px)
+        height:
+          type: integer
+          readOnly: true
+          title: Balandlik (px)
+        format:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          title: Holat
+        status_display:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yaratilgan
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Yangilangan
+    PatchedChangePassword:
+      type: object
+      description: Serializer for password change.
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+    PatchedUserProfile:
+      type: object
+      description: Serializer for user profile view/update.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+          title: Rol
+        phone:
+          type: string
+          nullable: true
+          title: Telefon
+          maxLength: 20
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        credits:
+          type: integer
+          readOnly: true
+          title: Kreditlar
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        artworks_count:
+          type: string
+          readOnly: true
+        evaluations_count:
+          type: string
+          readOnly: true
+    RoleEnum:
+      enum:
+      - artist
+      - admin
+      - judge
+      type: string
+      description: |-
+        * `artist` - Artist
+        * `admin` - Admin
+        * `judge` - Judge
+    StatusEnum:
+      enum:
+      - pending
+      - processing
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `pending` - Kutilmoqda
+        * `processing` - Baholanmoqda
+        * `completed` - Baholangan
+        * `failed` - Xatolik
+    TokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - refresh
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    UserProfile:
+      type: object
+      description: Serializer for user profile view/update.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+          title: Rol
+        phone:
+          type: string
+          nullable: true
+          title: Telefon
+          maxLength: 20
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        credits:
+          type: integer
+          readOnly: true
+          title: Kreditlar
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        artworks_count:
+          type: string
+          readOnly: true
+        evaluations_count:
+          type: string
+          readOnly: true
+      required:
+      - artworks_count
+      - credits
+      - date_joined
+      - evaluations_count
+      - id
+      - role
+      - username
+    UserRegistration:
+      type: object
+      description: Serializer for user registration.
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          title: Rol
+      required:
+      - password
+      - password_confirm
+      - username
+    UserStats:
+      type: object
+      description: Serializer for user statistics.
+      properties:
+        total_artworks:
+          type: integer
+        evaluated_artworks:
+          type: integer
+        pending_artworks:
+          type: integer
+        average_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        highest_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        credits_remaining:
+          type: integer
+        total_api_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
+          nullable: true
+      required:
+      - average_score
+      - credits_remaining
+      - evaluated_artworks
+      - highest_score
+      - pending_artworks
+      - total_api_cost
+      - total_artworks
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

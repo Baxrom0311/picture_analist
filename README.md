@@ -6,6 +6,7 @@ AI-powered art evaluation system using **Google Gemini LLM**. Evaluates artwork 
 
 ```bash
 # 1. Virtual environment
+# Recommended runtime: Python 3.12
 python -m venv venv
 source venv/bin/activate
 

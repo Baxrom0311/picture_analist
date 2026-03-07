@@ -6,15 +6,26 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config, Csv
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+PLACEHOLDER_SECRET_KEY = 'replace-with-a-very-long-random-secret-key-before-production-deploy-2026'
+SETTINGS_MODULE = os.environ.get('DJANGO_SETTINGS_MODULE', '')
+IS_DEVELOPMENT_SETTINGS = SETTINGS_MODULE.endswith('development')
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config(
     'SECRET_KEY',
-    default='replace-with-a-very-long-random-secret-key-before-production-deploy-2026',
+    default=PLACEHOLDER_SECRET_KEY if IS_DEVELOPMENT_SETTINGS else '',
 )
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY environment variable must be set.')
+if SECRET_KEY == PLACEHOLDER_SECRET_KEY and not IS_DEVELOPMENT_SETTINGS:
+    raise ImproperlyConfigured(
+        'SECRET_KEY must be changed from the default placeholder before running outside development.'
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)

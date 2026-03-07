@@ -1,6 +1,8 @@
 """
 Tests for Artworks app.
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
@@ -152,6 +154,41 @@ class ArtworkAPITest(TestCase):
         )
         response = self.client.get('/api/v1/categories/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch('apps.artworks.views.ArtworkViewSet._enqueue_evaluation', side_effect=RuntimeError('queue down'))
+    def test_create_artwork_enqueue_failure_rolls_back_credit_and_artwork(self, _mock_enqueue):
+        image = create_test_image()
+        starting_credits = self.user.credits
+
+        with patch('apps.artworks.views.transaction.on_commit', side_effect=lambda callback: callback()):
+            response = self.client.post('/api/v1/artworks/', {
+                'title': 'Queue Failure',
+                'image': image,
+            }, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.credits, starting_credits)
+        self.assertFalse(Artwork.objects.filter(title='Queue Failure').exists())
+
+    @patch('apps.artworks.views.ArtworkViewSet._enqueue_evaluation', side_effect=RuntimeError('queue down'))
+    def test_re_evaluate_enqueue_failure_preserves_artwork_state(self, _mock_enqueue):
+        artwork = Artwork.objects.create(
+            user=self.user,
+            title='Existing Artwork',
+            image=create_test_image(name='existing.jpg'),
+            status='completed',
+        )
+        starting_credits = self.user.credits
+
+        with patch('apps.artworks.views.transaction.on_commit', side_effect=lambda callback: callback()):
+            response = self.client.post(f'/api/v1/artworks/{artwork.id}/re-evaluate/', {})
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.user.refresh_from_db()
+        artwork.refresh_from_db()
+        self.assertEqual(self.user.credits, starting_credits)
+        self.assertEqual(artwork.status, 'completed')
 
 
 class CategoryManagementTest(TestCase):

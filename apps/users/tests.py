@@ -5,6 +5,8 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 User = get_user_model()
 
@@ -117,3 +119,21 @@ class AuthAPITest(TestCase):
     def test_profile_unauthenticated(self):
         response = self.client.get('/api/v1/auth/profile/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_change_password_blacklists_existing_refresh_tokens(self):
+        user = User.objects.create_user(
+            username='changepw',
+            password='StrongPass123!',
+        )
+        refresh = RefreshToken.for_user(user)
+
+        self.client.force_authenticate(user=user)
+        response = self.client.put('/api/v1/auth/change-password/', {
+            'old_password': 'StrongPass123!',
+            'new_password': 'NewStrongPass123!',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            BlacklistedToken.objects.filter(token__jti=str(refresh['jti'])).exists()
+        )

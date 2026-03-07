@@ -1,6 +1,7 @@
 """
 Views for Artworks app.
 """
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from rest_framework import viewsets, status, permissions, serializers as drf_serializers
@@ -156,20 +157,48 @@ class ArtworkViewSet(viewsets.ModelViewSet):
             return normalize_language(explicit_language)
         return normalize_language(self.request.LANGUAGE_CODE or DEFAULT_LANGUAGE)
 
-    def _enqueue_evaluation(self, artwork, language):
+    def _enqueue_evaluation(self, artwork_id, language):
+        from apps.evaluations.tasks import evaluate_artwork_async
 
-        try:
-            from apps.evaluations.tasks import evaluate_artwork_async
-            evaluate_artwork_async.delay(artwork.id, language=language)
-            return True
-        except Exception:
-            return False
+        if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+            evaluate_artwork_async.apply(
+                args=(artwork_id,),
+                kwargs={'language': language},
+                throw=False,
+            )
+            return
+
+        evaluate_artwork_async.delay(artwork_id, language=language)
+
+    def _delete_artwork_with_file(self, artwork_id):
+        artwork = Artwork.objects.filter(pk=artwork_id).first()
+        if not artwork:
+            return
+
+        image_name = artwork.image.name
+        storage = artwork.image.storage
+        artwork.delete()
+        if image_name:
+            try:
+                storage.delete(image_name)
+            except Exception:
+                pass
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         language = self._resolve_language(serializer.validated_data.get('language'))
         user_model = request.user.__class__
+        enqueue_result = {'success': True}
+        artwork_id = None
+
+        def enqueue_after_commit():
+            try:
+                self._enqueue_evaluation(artwork_id, language=language)
+            except Exception:
+                enqueue_result['success'] = False
+                user_model.objects.filter(pk=request.user.pk).update(credits=F('credits') + 1)
+                self._delete_artwork_with_file(artwork_id)
 
         with transaction.atomic():
             user = user_model.objects.select_for_update().get(pk=request.user.pk)
@@ -183,8 +212,7 @@ class ArtworkViewSet(viewsets.ModelViewSet):
                 )
 
             artwork = serializer.save(user=user)
-            artwork.status = 'processing'
-            artwork.save(update_fields=['status'])
+            artwork_id = artwork.pk
 
             if not user.deduct_credit():
                 return Response(
@@ -194,11 +222,9 @@ class ArtworkViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_402_PAYMENT_REQUIRED
                 )
+            transaction.on_commit(enqueue_after_commit)
 
-        if not self._enqueue_evaluation(artwork, language=language):
-            artwork.status = 'failed'
-            artwork.save(update_fields=['status'])
-            user_model.objects.filter(pk=request.user.pk).update(credits=F('credits') + 1)
+        if not enqueue_result['success']:
             return Response(
                 {
                     'success': False,
@@ -208,7 +234,7 @@ class ArtworkViewSet(viewsets.ModelViewSet):
             )
 
         # Return artwork detail for frontend (needs 'id' for polling)
-        artwork = Artwork.objects.get(pk=artwork.pk)
+        artwork = Artwork.objects.get(pk=artwork_id)
         detail_serializer = ArtworkDetailSerializer(artwork)
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -239,9 +265,19 @@ class ArtworkViewSet(viewsets.ModelViewSet):
         language = self._resolve_language(serializer.validated_data.get('language'))
 
         user_model = request.user.__class__
+        artwork_id = self.get_object().pk
+        enqueue_result = {'success': True}
+
+        def enqueue_after_commit():
+            try:
+                self._enqueue_evaluation(artwork_id, language=language)
+            except Exception:
+                enqueue_result['success'] = False
+                user_model.objects.filter(pk=request.user.pk).update(credits=F('credits') + 1)
+
         with transaction.atomic():
             user = user_model.objects.select_for_update().get(pk=request.user.pk)
-            artwork = Artwork.objects.select_for_update().get(pk=self.get_object().pk)
+            Artwork.objects.select_for_update().get(pk=artwork_id)
             if user.credits <= 0:
                 return Response(
                     {
@@ -251,8 +287,6 @@ class ArtworkViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_402_PAYMENT_REQUIRED
                 )
 
-            artwork.status = 'processing'
-            artwork.save(update_fields=['status'])
             if not user.deduct_credit():
                 return Response(
                     {
@@ -261,11 +295,9 @@ class ArtworkViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_402_PAYMENT_REQUIRED
                 )
+            transaction.on_commit(enqueue_after_commit)
 
-        if not self._enqueue_evaluation(artwork, language=language):
-            artwork.status = 'failed'
-            artwork.save(update_fields=['status'])
-            user_model.objects.filter(pk=request.user.pk).update(credits=F('credits') + 1)
+        if not enqueue_result['success']:
             return Response(
                 {
                     'success': False,

@@ -1,11 +1,13 @@
 """
 Views for Users app - Authentication and Profile management.
 """
+from django.db import transaction
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Max, Sum
 
@@ -214,10 +216,15 @@ class ChangePasswordView(generics.UpdateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        request.user.set_password(serializer.validated_data['new_password'])
-        request.user.save()
+        with transaction.atomic():
+            request.user.set_password(serializer.validated_data['new_password'])
+            request.user.save(update_fields=['password'])
+
+            outstanding_tokens = OutstandingToken.objects.filter(user=request.user)
+            for token in outstanding_tokens.iterator():
+                BlacklistedToken.objects.get_or_create(token=token)
 
         return Response({
             'success': True,
-            'message': 'Parol muvaffaqiyatli o\'zgartirildi.'
+            'message': 'Parol muvaffaqiyatli o\'zgartirildi. Barcha sessiyalar bekor qilindi.'
         })

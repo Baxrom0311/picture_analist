@@ -109,6 +109,27 @@ class ScoringServiceTest(TestCase):
                     'creativity': {'score': 82, 'analysis': 'Good'},
                     'overall_impact': {'score': 88, 'analysis': 'Good'},
                 },
+                'official_rubric': {
+                    'scheme': 'painting',
+                    'max_score': 100,
+                    'total_score': 84.7,
+                    'sections': [
+                        {
+                            'section_key': 'core',
+                            'section_score': 84.7,
+                            'section_max_score': 100,
+                            'criteria': [
+                                {
+                                    'criterion_key': 'composition',
+                                    'level': 'full',
+                                    'awarded_score': 84.7,
+                                    'max_score': 100,
+                                    'feedback': 'Measured rubric feedback',
+                                }
+                            ],
+                        }
+                    ],
+                },
                 'summary': 'Test summary',
                 'grade': 'B',
             }
@@ -136,6 +157,76 @@ class ScoringServiceTest(TestCase):
         self.assertEqual(evaluation.artwork.status, 'failed')
         self.assertEqual(EvaluationHistory.objects.count(), 2) # started + failed
         self.assertTrue(EvaluationHistory.objects.filter(action='failed').exists())
+
+    def test_failed_re_evaluation_preserves_previous_result(self):
+        service = ScoringService()
+        evaluation = Evaluation.objects.create(
+            artwork=self.artwork,
+            llm_model='gemini-flash-latest',
+            total_score=Decimal('88.00'),
+            summary='Old summary',
+            grade='B',
+            raw_response={'summary': 'Old summary'},
+        )
+        CategoryScore.objects.create(
+            evaluation=evaluation,
+            category=self.categories[0],
+            score=Decimal('88.00'),
+            feedback='Old feedback',
+            strengths=['old'],
+            improvements=['older'],
+        )
+
+        evaluation = service.init_evaluation(self.artwork, model_name='gemini-flash-latest')
+        service.fail_evaluation(evaluation, 'LLM timeout')
+
+        evaluation.refresh_from_db()
+        self.artwork.refresh_from_db()
+        self.assertEqual(self.artwork.status, 'completed')
+        self.assertEqual(evaluation.total_score, Decimal('88.00'))
+        self.assertEqual(evaluation.summary, 'Old summary')
+        self.assertEqual(evaluation.category_scores.count(), 1)
+
+    def test_update_evaluation_rejects_incomplete_llm_payload(self):
+        service = ScoringService()
+        evaluation = Evaluation.objects.create(
+            artwork=self.artwork,
+            llm_model='gemini-flash-latest',
+            total_score=Decimal('75.00'),
+            summary='Stable summary',
+            grade='C',
+            raw_response={'summary': 'Stable summary'},
+        )
+        CategoryScore.objects.create(
+            evaluation=evaluation,
+            category=self.categories[0],
+            score=Decimal('75.00'),
+            feedback='Stable feedback',
+            strengths=['stable'],
+            improvements=['improve'],
+        )
+
+        with self.assertRaises(ValueError):
+            service.update_evaluation(evaluation, {
+                'success': True,
+                'model': 'gemini-flash-latest',
+                'processing_time': 1.5,
+                'api_cost': 0.01,
+                'result': {
+                    'summary': 'Incomplete payload',
+                    'scores': {
+                        'composition': 90,
+                    },
+                    'feedback': {
+                        'composition': {'score': 90, 'analysis': 'Only one category'},
+                    },
+                },
+            })
+
+        evaluation.refresh_from_db()
+        self.assertEqual(evaluation.total_score, Decimal('75.00'))
+        self.assertEqual(evaluation.summary, 'Stable summary')
+        self.assertEqual(evaluation.category_scores.count(), 1)
 
 
 class EvaluationAPITest(TestCase):

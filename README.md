@@ -16,6 +16,7 @@ pip install -r requirements/development.txt
 # 3. Create .env file
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
+# Optional: set ADMIN_URL=analyst/ if you want the Django admin at /analyst/
 
 # 4. Database setup
 python manage.py makemigrations

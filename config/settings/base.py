@@ -31,6 +31,12 @@ if SECRET_KEY == PLACEHOLDER_SECRET_KEY and not IS_DEVELOPMENT_SETTINGS:
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ADMIN_URL = config('ADMIN_URL', default='admin/').strip()
+if not ADMIN_URL:
+    raise ImproperlyConfigured('ADMIN_URL environment variable must not be empty.')
+ADMIN_URL = ADMIN_URL.lstrip('/')
+if not ADMIN_URL.endswith('/'):
+    ADMIN_URL = f'{ADMIN_URL}/'
 
 # Application definition
 DJANGO_APPS = [

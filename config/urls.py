@@ -20,7 +20,7 @@ urlpatterns = [
     path('health/ready/', readiness_check, name='readiness-check'),
 
     # Admin
-    path('admin/', admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
 
     # API endpoints
     path('api/v1/auth/', include('apps.users.urls')),

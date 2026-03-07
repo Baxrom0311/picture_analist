@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: art_evaluation
       POSTGRES_USER: postgres
@@ -20,6 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     networks:
       app_network:
         ipv4_address: 172.20.0.3
@@ -31,6 +31,7 @@ services:
 
   web:
     build: .
+    restart: unless-stopped
     command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
@@ -50,15 +51,17 @@ services:
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
-      - db
-      - redis
-      - celery
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       app_network:
         ipv4_address: 172.20.0.4
 
   nginx:
     image: nginx:1.25-alpine
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
     volumes:
@@ -73,6 +76,7 @@ services:
 
   celery:
     build: .
+    restart: unless-stopped
     command: celery -A config worker -l info
     volumes:
       - .:/app
@@ -89,14 +93,17 @@ services:
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       app_network:
         ipv4_address: 172.20.0.5
 
   celery-beat:
     build: .
+    restart: unless-stopped
     command: celery -A config beat -l info
     volumes:
       - .:/app
@@ -112,8 +119,10 @@ services:
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       app_network:
         ipv4_address: 172.20.0.6

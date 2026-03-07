@@ -238,7 +238,7 @@ CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
 # Google Gemini LLM
 # =============================================================================
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
-GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-flash-latest')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 
 # =============================================================================
 # File Upload

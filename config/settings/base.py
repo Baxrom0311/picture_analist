@@ -38,6 +38,17 @@ ADMIN_URL = ADMIN_URL.lstrip('/')
 if not ADMIN_URL.endswith('/'):
     ADMIN_URL = f'{ADMIN_URL}/'
 
+
+def normalize_public_path(name: str, value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ImproperlyConfigured(f'{name} environment variable must not be empty.')
+    if not value.startswith('/'):
+        value = f'/{value}'
+    if not value.endswith('/'):
+        value = f'{value}/'
+    return value
+
 # Application definition
 DJANGO_APPS = [
     'modeltranslation', # Must be before admin
@@ -145,12 +156,12 @@ LOCALE_PATHS = [
 ]
 
 # Static files
-STATIC_URL = 'static/'
+STATIC_URL = normalize_public_path('STATIC_URL', config('STATIC_URL', default='/static/'))
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Media files
-MEDIA_URL = 'media/'
+MEDIA_URL = normalize_public_path('MEDIA_URL', config('MEDIA_URL', default='/media/'))
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type

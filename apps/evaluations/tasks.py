@@ -12,6 +12,13 @@ from core.language import normalize_language
 
 logger = logging.getLogger(__name__)
 NON_RETRYABLE_EXCEPTIONS = (ValueError,)
+NON_RETRYABLE_LLM_ERROR_MARKERS = (
+    '400 INVALID_ARGUMENT',
+    'API_KEY_INVALID',
+    'API key not valid',
+    'PERMISSION_DENIED',
+    'UNAUTHENTICATED',
+)
 
 
 @shared_task(
@@ -35,6 +42,7 @@ def evaluate_artwork_async(self, artwork_id, language='uz'):
     # Initialize scoring service
     scoring_service = ScoringService()
     evaluation = None
+    llm_result = None
 
     try:
         # Import settings to get current model name if needed
@@ -58,7 +66,7 @@ def evaluate_artwork_async(self, artwork_id, language='uz'):
         )
 
         if not llm_result['success']:
-            raise Exception(llm_result.get('error', 'LLM evaluation failed'))
+            raise _build_llm_exception(llm_result)
 
         # Update evaluation with results
         evaluation = scoring_service.update_evaluation(evaluation, llm_result)
@@ -87,7 +95,11 @@ def evaluate_artwork_async(self, artwork_id, language='uz'):
 
         # Log failure on final attempt
         if evaluation:
-            scoring_service.fail_evaluation(evaluation, str(exc))
+            scoring_service.fail_evaluation(
+                evaluation,
+                str(exc),
+                metadata=_build_failure_metadata(llm_result),
+            )
         else:
             artwork.status = 'failed'
             artwork.save(update_fields=['status'])
@@ -96,3 +108,42 @@ def evaluate_artwork_async(self, artwork_id, language='uz'):
             'success': False,
             'error': str(exc)
         }
+
+
+def _build_failure_metadata(llm_result):
+    if not isinstance(llm_result, dict):
+        return {}
+
+    metadata = {}
+    parsed_result = llm_result.get('result')
+    raw_response = llm_result.get('raw_response')
+
+    if isinstance(parsed_result, dict):
+        metadata['result_keys'] = sorted(parsed_result.keys())
+
+        scores = parsed_result.get('scores')
+        if isinstance(scores, dict):
+            metadata['score_keys'] = sorted(scores.keys())
+
+        feedback = parsed_result.get('feedback')
+        if isinstance(feedback, dict):
+            metadata['feedback_keys'] = sorted(feedback.keys())
+
+        # Keep the parsed payload for postmortem debugging when validation fails.
+        metadata['llm_result'] = parsed_result
+
+    if raw_response:
+        metadata['llm_raw_response'] = str(raw_response)[:10000]
+
+    model_name = llm_result.get('model')
+    if model_name:
+        metadata['llm_model'] = model_name
+
+    return metadata
+
+
+def _build_llm_exception(llm_result):
+    error_message = str(llm_result.get('error', 'LLM evaluation failed'))
+    if any(marker in error_message for marker in NON_RETRYABLE_LLM_ERROR_MARKERS):
+        return ValueError(error_message)
+    return RuntimeError(error_message)

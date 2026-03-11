@@ -15,6 +15,7 @@ from apps.artworks.models import Category, Artwork
 from apps.evaluations.models import Evaluation, CategoryScore, EvaluationHistory
 from apps.evaluations.services.scoring_service import ScoringService
 from apps.evaluations.services.prompt_templates import get_grade
+from apps.evaluations.tasks import _build_failure_metadata, _build_llm_exception
 
 User = get_user_model()
 
@@ -303,12 +304,90 @@ class ScoringServiceTest(TestCase):
         }
 
         updated_evaluation = service.update_evaluation(evaluation, llm_result)
-        composition_score = updated_evaluation.category_scores.get(category__name='Composition')
+        composition_score = updated_evaluation.category_scores.get(category=self.categories[0])
 
         self.assertEqual(updated_evaluation.category_scores.count(), 5)
         self.assertEqual(float(composition_score.score), 85.0)
         self.assertIn('composition', updated_evaluation.raw_response['scores'])
         self.assertIn('overall_impact', updated_evaluation.raw_response['scores'])
+
+    def test_update_evaluation_normalizes_cyrillic_category_keys(self):
+        service = ScoringService()
+        evaluation = service.init_evaluation(self.artwork, model_name='gemini-flash-latest')
+
+        llm_result = {
+            'success': True,
+            'model': 'gemini-flash-latest',
+            'processing_time': 2.4,
+            'api_cost': 0.01,
+            'result': {
+                'scores': {
+                    'композиция': 81,
+                    'цвет и свет': 77,
+                    'техника': 88,
+                    'креативность': 79,
+                    'общее впечатление': 83,
+                },
+                'feedback': {
+                    'композиция': {'analysis': 'Balanced', 'strengths': ['Structure'], 'improvements': ['Depth']},
+                    'цвет и свет': {'analysis': 'Good palette', 'strengths': ['Harmony'], 'improvements': ['Range']},
+                    'техника': {'analysis': 'Stable technique', 'strengths': ['Control'], 'improvements': ['Finish']},
+                    'креативность': {'analysis': 'Solid idea', 'strengths': ['Intent'], 'improvements': ['Surprise']},
+                    'общее впечатление': {'analysis': 'Memorable', 'strengths': ['Impact'], 'improvements': ['Refinement']},
+                },
+                'official_rubric': {
+                    'scheme': 'painting',
+                    'max_score': 100,
+                    'total_score': 81.6,
+                    'sections': [
+                        {
+                            'section_key': 'core',
+                            'section_score': 81.6,
+                            'section_max_score': 100,
+                            'criteria': [
+                                {
+                                    'criterion_key': 'composition',
+                                    'level': 'full',
+                                    'awarded_score': 81.6,
+                                    'max_score': 100,
+                                    'feedback': 'Measured rubric feedback',
+                                }
+                            ],
+                        }
+                    ],
+                },
+                'summary': 'Russian normalized summary',
+                'grade': 'B',
+            },
+        }
+
+        updated_evaluation = service.update_evaluation(evaluation, llm_result)
+
+        self.assertEqual(updated_evaluation.category_scores.count(), 5)
+        self.assertIn('composition', updated_evaluation.raw_response['scores'])
+        self.assertIn('color_light', updated_evaluation.raw_response['scores'])
+        self.assertEqual(
+            float(updated_evaluation.category_scores.get(category=self.categories[0]).score),
+            81.0,
+        )
+
+    def test_fail_evaluation_stores_debug_metadata(self):
+        service = ScoringService()
+        evaluation = service.init_evaluation(self.artwork, model_name='gemini-flash-latest')
+
+        service.fail_evaluation(
+            evaluation,
+            'composition missing',
+            metadata={
+                'score_keys': ['color_light', 'technique'],
+                'feedback_keys': ['composition'],
+                'llm_raw_response': '{"scores":{"color_light":78}}',
+            },
+        )
+
+        history = EvaluationHistory.objects.filter(action='failed').latest('created_at')
+        self.assertEqual(history.metadata['score_keys'], ['color_light', 'technique'])
+        self.assertIn('llm_raw_response', history.metadata)
 
 
 class EvaluationAPITest(TestCase):
@@ -383,6 +462,36 @@ class LLMServiceTest(TestCase):
 
         self.assertFalse(result['success'])
         self.assertIn("API Error", result['error'])
+
+
+class EvaluationTaskDebugTest(TestCase):
+    def test_build_failure_metadata_extracts_keys_and_raw_response(self):
+        metadata = _build_failure_metadata({
+            'model': 'gemini-2.5-flash',
+            'raw_response': '{"scores":{"kompozitsiya":90}}',
+            'result': {
+                'scores': {'kompozitsiya': 90},
+                'feedback': {'kompozitsiya': {'score': 90, 'analysis': 'Good'}},
+                'summary': 'ok',
+            },
+        })
+
+        self.assertEqual(metadata['score_keys'], ['kompozitsiya'])
+        self.assertEqual(metadata['feedback_keys'], ['kompozitsiya'])
+
+    def test_build_llm_exception_marks_permanent_provider_errors_as_value_error(self):
+        exception = _build_llm_exception({
+            'error': '400 INVALID_ARGUMENT. API key not valid. Please pass a valid API key.'
+        })
+
+        self.assertIsInstance(exception, ValueError)
+
+    def test_build_llm_exception_keeps_transient_provider_errors_retryable(self):
+        exception = _build_llm_exception({
+            'error': '503 UNAVAILABLE. This model is currently experiencing high demand.'
+        })
+
+        self.assertIsInstance(exception, RuntimeError)
 
 
 class PromptTemplatesTest(TestCase):

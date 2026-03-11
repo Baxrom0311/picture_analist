@@ -71,22 +71,28 @@ class RequestLoggingMiddleware:
             duration = time.time() - start_time
             user = getattr(request, 'user', None)
             username = user.username if user and user.is_authenticated else 'anonymous'
+            duration_ms = round(duration * 1000, 2)
+            client_ip = self._get_client_ip(request)
+            message = (
+                f'{request.method} {request.path} -> {response.status_code} '
+                f'({duration_ms}ms) user={username} ip={client_ip}'
+            )
 
             log_data = {
                 'method': request.method,
                 'path': request.path,
                 'status': response.status_code,
-                'duration_ms': round(duration * 1000, 2),
+                'duration_ms': duration_ms,
                 'user': username,
-                'ip': self._get_client_ip(request),
+                'ip': client_ip,
             }
 
             if response.status_code >= 500:
-                logger.error('Server error', extra=log_data)
+                logger.error(message, extra=log_data)
             elif response.status_code >= 400:
-                logger.warning('Client error', extra=log_data)
+                logger.warning(message, extra=log_data)
             else:
-                logger.info('Request completed', extra=log_data)
+                logger.info(message, extra=log_data)
 
         return response
 

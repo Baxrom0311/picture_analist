@@ -30,22 +30,31 @@ class ScoringService:
     CATEGORY_KEY_MAP = {
         'composition': 'composition',
         'kompozitsiya': 'composition',
+        'композиция': 'composition',
         'color and light': 'color_light',
         'color_and_light': 'color_light',
         'colorlight': 'color_light',
         "rang va yorug'lik": 'color_light',
         'rang va yoruglik': 'color_light',
         'rang_va_yoruglik': 'color_light',
+        'цвет и свет': 'color_light',
+        'цвет_и_свет': 'color_light',
+        'цветисвет': 'color_light',
         'technique': 'technique',
         'texnika': 'technique',
+        'техника': 'technique',
         'creativity': 'creativity',
         'kreativlik': 'creativity',
+        'креативность': 'creativity',
         'overall impact': 'overall_impact',
         'overall_impact': 'overall_impact',
         'overallimpact': 'overall_impact',
         "umumiy ta'sir": 'overall_impact',
         'umumiy tasir': 'overall_impact',
         'umumiy_tasir': 'overall_impact',
+        'общее впечатление': 'overall_impact',
+        'общее_впечатление': 'overall_impact',
+        'общеевпечатление': 'overall_impact',
     }
     PROMPT_VERSION = '2.0'
 
@@ -197,20 +206,24 @@ class ScoringService:
 
         return evaluation
 
-    def fail_evaluation(self, evaluation, error_message):
+    def fail_evaluation(self, evaluation, error_message, metadata=None):
         """
         Log failure for an existing evaluation.
         """
         # Preserve the last successful evaluation when a re-run fails.
         evaluation.artwork.status = 'completed' if self._has_published_result(evaluation) else 'failed'
         evaluation.artwork.save(update_fields=['status'])
-        
+
         # Log failure
+        history_metadata = {'error': str(error_message)}
+        if isinstance(metadata, dict):
+            history_metadata.update(metadata)
+
         EvaluationHistory.objects.create(
             evaluation=evaluation,
             action='failed',
             message=str(error_message),
-            metadata={'error': str(error_message)}
+            metadata=history_metadata
         )
         logger.error(f"Evaluation #{evaluation.id} marked as failed: {error_message}")
 
@@ -241,12 +254,20 @@ class ScoringService:
                 or getattr(category, 'name_uz', '')
             )
             if category_key not in scores:
-                raise ValueError(f'LLM natijasida {category_key} uchun score topilmadi.')
+                available_keys = ', '.join(sorted(scores.keys())) or 'none'
+                raise ValueError(
+                    f'LLM natijasida {category_key} uchun score topilmadi. '
+                    f'Mavjud scores kalitlari: {available_keys}'
+                )
             self._parse_decimal(scores[category_key], f'{category_key} score')
 
             category_feedback = feedback.get(category_key)
             if not isinstance(category_feedback, dict):
-                raise ValueError(f'LLM natijasida {category_key} uchun feedback topilmadi.')
+                available_feedback_keys = ', '.join(sorted(feedback.keys())) or 'none'
+                raise ValueError(
+                    f'LLM natijasida {category_key} uchun feedback topilmadi. '
+                    f'Mavjud feedback kalitlari: {available_feedback_keys}'
+                )
 
             analysis = category_feedback.get('analysis')
             if not isinstance(analysis, str) or not analysis.strip():
@@ -418,8 +439,9 @@ class ScoringService:
     def _normalize_category_alias(self, value):
         normalized = value.strip().lower()
         normalized = normalized.replace('’', "'").replace('`', "'").replace('ʻ', "'")
+        normalized = normalized.replace('ё', 'е')
         normalized = normalized.replace('&', ' and ')
-        normalized = re.sub(r"[^a-z0-9']+", '_', normalized)
+        normalized = re.sub(r"[^\w']+", '_', normalized, flags=re.UNICODE)
         normalized = normalized.strip('_')
         normalized = normalized.replace("'", '')
         return normalized

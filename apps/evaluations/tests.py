@@ -228,6 +228,88 @@ class ScoringServiceTest(TestCase):
         self.assertEqual(evaluation.summary, 'Stable summary')
         self.assertEqual(evaluation.category_scores.count(), 1)
 
+    def test_update_evaluation_normalizes_alias_keys_and_feedback_scores(self):
+        service = ScoringService()
+        evaluation = service.init_evaluation(self.artwork, model_name='gemini-flash-latest')
+
+        llm_result = {
+            'success': True,
+            'model': 'gemini-flash-latest',
+            'processing_time': 2.0,
+            'api_cost': 0.01,
+            'result': {
+                'scores': {
+                    'color_and_light': 78,
+                    'technique': 90,
+                    'creativity': 82,
+                    'overallImpact': 88,
+                },
+                'feedback': {
+                    'kompozitsiya': {
+                        'score': 85,
+                        'analysis': 'Good composition',
+                        'strengths': ['Balance'],
+                        'improvements': ['Contrast'],
+                    },
+                    'color and light': {
+                        'score': 78,
+                        'analysis': 'Good color',
+                        'strengths': ['Light'],
+                        'improvements': ['Depth'],
+                    },
+                    'technique': {
+                        'score': 90,
+                        'analysis': 'Strong technique',
+                        'strengths': ['Control'],
+                        'improvements': ['Detail'],
+                    },
+                    'creativity': {
+                        'score': 82,
+                        'analysis': 'Creative approach',
+                        'strengths': ['Originality'],
+                        'improvements': ['Risk'],
+                    },
+                    'overall impact': {
+                        'score': 88,
+                        'analysis': 'Strong impact',
+                        'strengths': ['Presence'],
+                        'improvements': ['Polish'],
+                    },
+                },
+                'official_rubric': {
+                    'scheme': 'painting',
+                    'max_score': 100,
+                    'total_score': 84.7,
+                    'sections': [
+                        {
+                            'section_key': 'core',
+                            'section_score': 84.7,
+                            'section_max_score': 100,
+                            'criteria': [
+                                {
+                                    'criterion_key': 'composition',
+                                    'level': 'full',
+                                    'awarded_score': 84.7,
+                                    'max_score': 100,
+                                    'feedback': 'Measured rubric feedback',
+                                }
+                            ],
+                        }
+                    ],
+                },
+                'summary': 'Normalized summary',
+                'grade': 'B',
+            }
+        }
+
+        updated_evaluation = service.update_evaluation(evaluation, llm_result)
+        composition_score = updated_evaluation.category_scores.get(category__name='Composition')
+
+        self.assertEqual(updated_evaluation.category_scores.count(), 5)
+        self.assertEqual(float(composition_score.score), 85.0)
+        self.assertIn('composition', updated_evaluation.raw_response['scores'])
+        self.assertIn('overall_impact', updated_evaluation.raw_response['scores'])
+
 
 class EvaluationAPITest(TestCase):
     """Tests for Evaluation API endpoints."""

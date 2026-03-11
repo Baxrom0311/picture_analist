@@ -129,7 +129,7 @@ class LLMService:
             # 3. Call Gemini API
             # Config for JSON response
             config = types.GenerateContentConfig(
-                temperature=0.4,
+                temperature=0.2,
                 response_mime_type="application/json"
             )
 
@@ -215,6 +215,7 @@ class LLMService:
         rubric_text = "\n".join(rubric_lines)
 
         numbered_rules = "\n".join([f"{idx}. {rule}" for idx, rule in enumerate(copy['rules_list'], start=1)])
+        required_keys = ", ".join([self._category_key(cat) for cat in categories])
 
         prompt = f"""{copy['intro']}
 
@@ -230,6 +231,11 @@ class LLMService:
 
 {copy['rules']}:
 {numbered_rules}
+
+JSON KEY QOIDASI:
+- `scores` obyektida aynan shu kalitlar bo'lishi shart: {required_keys}
+- `feedback` obyektida ham aynan shu kalitlar bo'lishi shart: {required_keys}
+- JSON kalitlarini tarjima qilmang, o'zgartirmang, qisqartirmang va tashlab ketmang
 
 {copy['response']}:
 {{

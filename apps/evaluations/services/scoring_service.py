@@ -2,6 +2,7 @@
 Scoring Service - Creates evaluation records from LLM results.
 """
 import logging
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -27,26 +28,24 @@ class ScoringService:
 
     # Mapping from Category.name to LLM response key
     CATEGORY_KEY_MAP = {
-        'Composition': 'composition',
         'composition': 'composition',
-        'Kompozitsiya': 'composition',
         'kompozitsiya': 'composition',
-        'Color and Light': 'color_light',
         'color and light': 'color_light',
-        "Rang va yorug'lik": 'color_light',
+        'color_and_light': 'color_light',
+        'colorlight': 'color_light',
         "rang va yorug'lik": 'color_light',
-        'Technique': 'technique',
+        'rang va yoruglik': 'color_light',
+        'rang_va_yoruglik': 'color_light',
         'technique': 'technique',
-        'Texnika': 'technique',
         'texnika': 'technique',
-        'Creativity': 'creativity',
         'creativity': 'creativity',
-        'Kreativlik': 'creativity',
         'kreativlik': 'creativity',
-        'Overall Impact': 'overall_impact',
         'overall impact': 'overall_impact',
-        "Umumiy ta'sir": 'overall_impact',
+        'overall_impact': 'overall_impact',
+        'overallimpact': 'overall_impact',
         "umumiy ta'sir": 'overall_impact',
+        'umumiy tasir': 'overall_impact',
+        'umumiy_tasir': 'overall_impact',
     }
     PROMPT_VERSION = '2.0'
 
@@ -98,7 +97,7 @@ class ScoringService:
         Replaces 'create_evaluation'.
         """
         categories = list(Category.objects.filter(is_active=True))
-        result_data = llm_result.get('result', {})
+        result_data = self._normalize_result_data(llm_result.get('result', {}), categories)
         self._validate_result_data(result_data, categories)
 
         with transaction.atomic():
@@ -326,6 +325,63 @@ class ScoringService:
                 if awarded_score < 0 or awarded_score > criterion_max_score:
                     raise ValueError('criterion awarded_score noto\'g\'ri.')
 
+    def _normalize_result_data(self, result_data, categories):
+        if not isinstance(result_data, dict):
+            return result_data
+
+        normalized_result = dict(result_data)
+        raw_scores = normalized_result.get('scores', {})
+        raw_feedback = normalized_result.get('feedback', {})
+
+        scores = self._normalize_category_dict(raw_scores) if isinstance(raw_scores, dict) else raw_scores
+        feedback = self._normalize_category_dict(raw_feedback) if isinstance(raw_feedback, dict) else raw_feedback
+
+        if isinstance(scores, dict):
+            normalized_result['scores'] = scores
+        if isinstance(feedback, dict):
+            normalized_result['feedback'] = feedback
+
+        if not isinstance(scores, dict) or not isinstance(feedback, dict):
+            return normalized_result
+
+        for category in categories:
+            category_key = self._get_category_key(
+                getattr(category, 'name_en', None)
+                or getattr(category, 'name', None)
+                or getattr(category, 'name_uz', '')
+            )
+            category_feedback = feedback.get(category_key)
+            if (
+                category_key not in scores
+                and isinstance(category_feedback, dict)
+                and category_feedback.get('score') is not None
+            ):
+                scores[category_key] = category_feedback['score']
+                logger.warning(
+                    "Normalized missing '%s' score from feedback payload.",
+                    category_key,
+                )
+
+        return normalized_result
+
+    def _normalize_category_dict(self, payload):
+        normalized_payload = {}
+        for raw_key, value in payload.items():
+            canonical_key = self._get_category_key(raw_key)
+            if canonical_key not in normalized_payload:
+                normalized_payload[canonical_key] = value
+                continue
+
+            existing_value = normalized_payload[canonical_key]
+            if not isinstance(existing_value, dict) or not isinstance(value, dict):
+                continue
+
+            merged_value = dict(existing_value)
+            merged_value.update(value)
+            normalized_payload[canonical_key] = merged_value
+
+        return normalized_payload
+
     def _parse_decimal(self, value, field_name):
         try:
             return Decimal(str(value))
@@ -341,13 +397,29 @@ class ScoringService:
 
     def _get_category_key(self, category_name):
         """Map category name to LLM response key."""
-        normalized = (category_name or '').strip().lower()
-        for candidate in (
-            category_name,
-            (category_name or '').strip(),
-            (category_name or '').strip().title(),
-            normalized,
-        ):
-            if candidate in self.CATEGORY_KEY_MAP:
-                return self.CATEGORY_KEY_MAP[candidate]
-        return normalized.replace(' ', '_')
+        raw_value = (category_name or '').strip()
+        if not raw_value:
+            return ''
+
+        normalized = self._normalize_category_alias(raw_value)
+        if normalized in self.CATEGORY_KEY_MAP:
+            return self.CATEGORY_KEY_MAP[normalized]
+
+        compact = normalized.replace('_', '')
+        if compact in self.CATEGORY_KEY_MAP:
+            return self.CATEGORY_KEY_MAP[compact]
+
+        spaced = normalized.replace('_', ' ')
+        if spaced in self.CATEGORY_KEY_MAP:
+            return self.CATEGORY_KEY_MAP[spaced]
+
+        return normalized
+
+    def _normalize_category_alias(self, value):
+        normalized = value.strip().lower()
+        normalized = normalized.replace('’', "'").replace('`', "'").replace('ʻ', "'")
+        normalized = normalized.replace('&', ' and ')
+        normalized = re.sub(r"[^a-z0-9']+", '_', normalized)
+        normalized = normalized.strip('_')
+        normalized = normalized.replace("'", '')
+        return normalized

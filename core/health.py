@@ -70,21 +70,27 @@ def readiness_check(request):
         logger.error(f'Health check: DB connection failed: {e}')
 
     # 2. Redis / Celery broker check
-    try:
-        start = time.time()
-        from redis import Redis
-        broker_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://localhost:6379/0')
-        redis_client = Redis.from_url(broker_url, socket_timeout=3)
-        redis_client.ping()
-        redis_client.close()
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
         checks['redis'] = {
-            'status': 'ok',
-            'latency_ms': round((time.time() - start) * 1000, 2),
+            'status': 'skipped',
+            'mode': 'eager',
         }
-    except Exception as e:
-        checks['redis'] = {'status': 'error', 'message': str(e)}
-        all_ok = False
-        logger.error(f'Health check: Redis connection failed: {e}')
+    else:
+        try:
+            start = time.time()
+            from redis import Redis
+            broker_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://localhost:6379/0')
+            redis_client = Redis.from_url(broker_url, socket_timeout=3)
+            redis_client.ping()
+            redis_client.close()
+            checks['redis'] = {
+                'status': 'ok',
+                'latency_ms': round((time.time() - start) * 1000, 2),
+            }
+        except Exception as e:
+            checks['redis'] = {'status': 'error', 'message': str(e)}
+            all_ok = False
+            logger.error(f'Health check: Redis connection failed: {e}')
 
     # 3. Storage check (S3 if enabled)
     use_s3 = getattr(settings, 'USE_S3', False)

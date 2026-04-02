@@ -1,23 +1,34 @@
 """
 Development settings for AI Art Evaluation System.
 """
+import dj_database_url
+
 from .base import *  # noqa: F401,F403
 
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-# Use SQLite for development if PostgreSQL is not available
-DATABASES = {
-    'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
-        'USER': config('DB_USER', default=''),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default=''),
-        'PORT': config('DB_PORT', default=''),
+# Use DATABASE_URL when provided (e.g. Supabase), otherwise fall back to SQLite.
+if not DATABASE_URL:  # noqa: F405
+    DATABASES = {
+        'default': {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
+            'NAME': config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
+            'USER': config('DB_USER', default=''),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default=''),
+            'PORT': config('DB_PORT', default=''),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': dj_database_url.parse(  # noqa: F405
+            DATABASE_URL,  # noqa: F405
+            conn_max_age=DB_CONN_MAX_AGE,  # noqa: F405
+            ssl_require=DB_SSL_REQUIRE,  # noqa: F405
+        )
+    }
 
 # CORS - allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True

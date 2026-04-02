@@ -7,6 +7,16 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
+if 'whitenoise.middleware.WhiteNoiseMiddleware' not in MIDDLEWARE:  # noqa: F405
+    MIDDLEWARE.insert(2, 'whitenoise.middleware.WhiteNoiseMiddleware')  # noqa: F405
+
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
 # =============================================================================
 # Security Settings
 # =============================================================================
@@ -32,7 +42,8 @@ CORS_ALLOW_ALL_ORIGINS = False
 # =============================================================================
 # Celery - use Redis in production
 # =============================================================================
-CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
+CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 
 # =============================================================================
 # Database - connection pooling

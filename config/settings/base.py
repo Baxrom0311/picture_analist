@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+import dj_database_url
 from decouple import config, Csv
 from django.core.exceptions import ImproperlyConfigured
 
@@ -31,6 +32,9 @@ if SECRET_KEY == PLACEHOLDER_SECRET_KEY and not IS_DEVELOPMENT_SETTINGS:
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 ADMIN_URL = config('ADMIN_URL', default='admin/').strip()
 if not ADMIN_URL:
     raise ImproperlyConfigured('ADMIN_URL environment variable must not be empty.')
@@ -117,16 +121,29 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='art_evaluation'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='postgres'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+DATABASE_URL = config('DATABASE_URL', default='').strip()
+DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=600, cast=int)
+DB_SSL_REQUIRE = config('DB_SSL_REQUIRE', default=False, cast=bool)
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=DB_CONN_MAX_AGE,
+            ssl_require=DB_SSL_REQUIRE,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='art_evaluation'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='postgres'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -163,6 +180,7 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # Media files
 MEDIA_URL = normalize_public_path('MEDIA_URL', config('MEDIA_URL', default='/media/'))
 MEDIA_ROOT = BASE_DIR / 'media'
+SERVE_MEDIA = config('SERVE_MEDIA', default=False, cast=bool)
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

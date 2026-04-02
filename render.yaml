@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: analyst-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements/production.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 180
+    healthCheckPath: /health/ready/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DEBUG
+        value: "False"
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "True"
+      - key: SERVE_MEDIA
+        value: "True"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false

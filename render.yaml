@@ -4,8 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements/production.txt && python manage.py collectstatic --noinput
-    preDeployCommand: python manage.py migrate
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 180
+    startCommand: python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 180
     healthCheckPath: /health/ready/
     envVars:
       - key: DJANGO_SETTINGS_MODULE

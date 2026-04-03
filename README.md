@@ -112,6 +112,7 @@ Free Render caveats:
 
 - `CELERY_TASK_ALWAYS_EAGER=True` runs evaluations inside the web request. This is fine for demos, but slow requests can still time out.
 - `SERVE_MEDIA=True` makes Django serve uploaded files directly. This works for hobby deploys, but Render free disks are ephemeral, so uploaded files can disappear after restart or redeploy.
+- Render free services do not support `preDeployCommand`, so this Blueprint runs `python manage.py migrate` inside the `startCommand`.
 - For durable uploads, move media to S3-compatible storage later.
 
 ## Tests

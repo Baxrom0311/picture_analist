@@ -6,7 +6,7 @@ import logging
 
 from django.db import connection
 from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def health_check(request):
     """
     Basic liveness probe.
@@ -40,6 +41,7 @@ def health_check(request):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def readiness_check(request):
     """
     Readiness probe — checks all dependencies.

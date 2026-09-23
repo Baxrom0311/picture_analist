@@ -32,9 +32,14 @@ if SECRET_KEY == PLACEHOLDER_SECRET_KEY and not IS_DEVELOPMENT_SETTINGS:
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
-if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+for host in os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').split(','):
+    host = host.strip()
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+for host in os.environ.get('NF_HOSTS', '').split(','):
+    host = host.strip()
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 ADMIN_URL = config('ADMIN_URL', default='admin/').strip()
 if not ADMIN_URL:
     raise ImproperlyConfigured('ADMIN_URL environment variable must not be empty.')

@@ -115,6 +115,33 @@ Free Render caveats:
 - Render free services do not support `preDeployCommand`, so this Blueprint runs `python manage.py migrate` inside the `startCommand`.
 - For durable uploads, move media to S3-compatible storage later.
 
+## Northflank Deploy
+
+This backend can also run on Northflank as a Dockerfile-based combined service.
+
+1. Create a Northflank project.
+2. Add a PostgreSQL addon and copy its connection string.
+3. Create a combined service from this GitHub repo.
+4. Select Dockerfile build and expose public HTTP port `8000`.
+5. Add these runtime variables:
+
+```env
+DJANGO_SETTINGS_MODULE=config.settings.production
+DEBUG=False
+SECRET_KEY=replace-this-with-a-random-secret
+DATABASE_URL=postgresql://...
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain.vercel.app
+CSRF_TRUSTED_ORIGINS=https://your-frontend-domain.vercel.app
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash
+CELERY_TASK_ALWAYS_EAGER=True
+SERVE_MEDIA=True
+WEB_CONCURRENCY=1
+GUNICORN_TIMEOUT=180
+```
+
+The Docker container runs [`scripts/start.sh`](./scripts/start.sh), which applies migrations, collects static files, and starts Gunicorn. Northflank-provided public hostnames are read from `NF_HOSTS` automatically, so you normally do not need to set `ALLOWED_HOSTS`.
+
 ## Tests
 
 ```bash
